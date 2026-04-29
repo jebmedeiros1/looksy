@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  emailEncrypted String    @unique
+  emailHash      String    @unique
+  passwordHash   String
+  nameEncrypted  String?
+  twoFactorEnabled Boolean   @default(false)
+  twoFactorSecretEncrypted String?
+  passwordResetTokenHash String?
+  passwordResetExpiresAt DateTime?
+  consentAt      DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  garments       Garment[]
+  looks          Look[]
+  knowledgeFiles KnowledgeFile[]
+  knowledgeIndex KnowledgeIndex?
+
+  @@map("users")
+}
+
+model Garment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageUrl   String
+  type       String
+  color      String
+  colorHex   String
+  style      String
+  occasions  String
+  season     String
+  material   String?
+  confidence Float?
+  length     String?
+  fit        String?
+  createdAt  DateTime @default(now())
+
+  @@map("garments")
+}
+
+model Look {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  garmentsJson String
+  moodTags     String
+  explanation  String
+  eventContext String
+  saved        Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@map("looks")
+}
+
+model KnowledgeFile {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename  String
+  content   String
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, filename])
+  @@map("knowledge_files")
+}
+
+model KnowledgeIndex {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  indexJson String
+  updatedAt DateTime @updatedAt
+
+  @@map("knowledge_index")
+}
