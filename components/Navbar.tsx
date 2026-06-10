@@ -2,12 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Sparkles, ShirtIcon, Wand2, Brain, LogOut, UserCircle } from "lucide-react";
+import { Sparkles, ShirtIcon, Wand2, Brain, LogOut, UserCircle, Store } from "lucide-react";
 import clsx from "clsx";
 
 const links = [
   { href: "/wardrobe", label: "Guarda-Roupa", icon: ShirtIcon },
   { href: "/generate", label: "Compor Look", icon: Wand2 },
+  { href: "/store", label: "Loja", icon: Store },
   { href: "/knowledge", label: "Essência", icon: Brain },
 ];
 

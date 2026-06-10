@@ -20,6 +20,9 @@ export async function GET() {
     explanation: l.explanation,
     eventContext: l.eventContext,
     saved: l.saved,
+    feeling: l.feeling ?? undefined,
+    feelingEmoji: l.feelingEmoji ?? undefined,
+    wornAt: l.wornAt?.toISOString() ?? undefined,
     createdAt: l.createdAt.toISOString(),
   }));
 

@@ -22,8 +22,100 @@ export interface Look {
   explanation: string;
   eventContext: string;
   saved: boolean;
+  feeling?: string;
+  feelingEmoji?: string;
+  wornAt?: string;
   createdAt: string;
 }
+
+export interface WardrobeStore {
+  id: string;
+  userId: string;
+  ownerName: string;
+  name: string;
+  description: string;
+  tags: string[];
+  garments: GarmentItem[];
+  views: number;
+  clones: number;
+  createdAt: string;
+}
+
+export const FEELING_OPTIONS = [
+  { emoji: "✨", label: "Radiante", value: "radiante" },
+  { emoji: "💪", label: "Poderosa", value: "poderosa" },
+  { emoji: "🌸", label: "Feminina", value: "feminina" },
+  { emoji: "🔥", label: "Ousada", value: "ousada" },
+  { emoji: "🧡", label: "Acolhida", value: "acolhida" },
+  { emoji: "😌", label: "Confortável", value: "confortavel" },
+  { emoji: "🎨", label: "Criativa", value: "criativa" },
+  { emoji: "💎", label: "Elegante", value: "elegante" },
+  { emoji: "🌿", label: "Natural", value: "natural" },
+  { emoji: "⚡", label: "Energizada", value: "energizada" },
+] as const;
+
+export const MOTIVATIONAL_MESSAGES = [
+  {
+    message: "Vestir-se é um ato de amor próprio. Cada peça que você escolhe é um capítulo da sua história.",
+    author: "Maria Klien",
+    archetype: "S — Singularidade",
+  },
+  {
+    message: "Sua roupa não fala sobre moda. Ela fala sobre quem você é e quem quer ser neste momento.",
+    author: "Looksy",
+    archetype: "E — Expressão",
+  },
+  {
+    message: "Não existe look errado quando a escolha nasce de dentro para fora.",
+    author: "Maria Klien",
+    archetype: "R — Raiz",
+  },
+  {
+    message: "O guarda-roupa ideal é aquele que te recebe bem todas as manhãs e te manda ao mundo com confiança.",
+    author: "Looksy",
+    archetype: "V — Vitalidade",
+  },
+  {
+    message: "Você não precisa de mais roupas. Você precisa entender as que já tem.",
+    author: "Maria Klien",
+    archetype: "I — Identidade",
+  },
+  {
+    message: "Cor não é detalhe. Cor é linguagem. E você merece falar com clareza.",
+    author: "Looksy",
+    archetype: "R — Ressonância",
+  },
+  {
+    message: "A mulher que conhece seu estilo não segue tendências — ela as define.",
+    author: "Maria Klien",
+    archetype: "A — Autenticidade",
+  },
+  {
+    message: "Cada manhã é um convite: que versão de você quer se mostrar hoje?",
+    author: "Looksy",
+    archetype: "I — Intenção",
+  },
+  {
+    message: "Seu corpo é lar, não tela. Vista-o com gratidão e intenção.",
+    author: "Maria Klien",
+    archetype: "Z — Zelo",
+  },
+  {
+    message: "Simplicidade não é ausência — é a arte de saber o que é essencial.",
+    author: "Looksy",
+    archetype: "S — Síntese",
+  },
+  {
+    message: "O que você veste ao entrar em um lugar já contou uma história antes de você abrir a boca.",
+    author: "Maria Klien",
+    archetype: "E — Essência",
+  },
+  {
+    message: "Cuide do seu guarda-roupa como você cuida das suas ideias: com critério e carinho.",
+    author: "Looksy",
+    archetype: "R — Refino",
+  },
+] as const;
 
 export const MOODS = [
   { id: "empoderada", label: "Empoderada", emoji: "💪", color: "bg-red-100 text-red-700 border-red-300" },

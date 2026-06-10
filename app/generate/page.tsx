@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { GarmentItem, Look, MOODS, EVENT_CHIPS } from "@/lib/types";
+import { GarmentItem, Look, MOODS, EVENT_CHIPS, FEELING_OPTIONS } from "@/lib/types";
 import { compressImage } from "@/lib/storage";
 import {
   Wand2, Loader2, Sparkles, Heart, BookmarkCheck, RefreshCw,
@@ -29,6 +29,8 @@ export default function GeneratePage() {
   const [loading, setLoading] = useState(false);
   const [looks, setLooks] = useState<Look[]>([]);
   const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [feelings, setFeelings] = useState<Record<string, { emoji: string; label: string }>>({});
+  const [showFeelingFor, setShowFeelingFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [garments, setGarments] = useState<GarmentItem[]>([]);
   const [loadingGarments, setLoadingGarments] = useState(true);
@@ -95,6 +97,16 @@ export default function GeneratePage() {
       body: JSON.stringify(updated),
     });
     setSaved((prev) => new Set([...Array.from(prev), look.id]));
+  }
+
+  async function handleFeelingSelect(lookId: string, emoji: string, label: string) {
+    setFeelings((prev) => ({ ...prev, [lookId]: { emoji, label } }));
+    setShowFeelingFor(null);
+    await fetch(`/api/user/looks/${lookId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feelingEmoji: emoji, feeling: label }),
+    });
   }
 
   function reset() {
@@ -366,6 +378,40 @@ export default function GeneratePage() {
                               ? <><BookmarkCheck className="w-4 h-4" /> Guardado!</>
                               : <><Heart className="w-4 h-4" /> Guardar look</>}
                           </button>
+
+                          {/* Feeling picker — shown after saving */}
+                          {saved.has(look.id) && (
+                            feelings[look.id] ? (
+                              <div className="flex items-center justify-center gap-2 py-2 text-sm text-gray-600 bg-pink-50 rounded-xl">
+                                <span className="text-lg">{feelings[look.id].emoji}</span>
+                                <span className="font-medium">{feelings[look.id].label}</span>
+                              </div>
+                            ) : showFeelingFor === look.id ? (
+                              <div className="mt-1">
+                                <p className="text-xs text-center text-gray-500 mb-2">Como você se sentiu?</p>
+                                <div className="grid grid-cols-5 gap-1">
+                                  {FEELING_OPTIONS.map((f) => (
+                                    <button
+                                      key={f.value}
+                                      onClick={() => handleFeelingSelect(look.id, f.emoji, f.label)}
+                                      title={f.label}
+                                      className="flex flex-col items-center gap-0.5 py-1.5 rounded-xl hover:bg-pink-50 transition"
+                                    >
+                                      <span className="text-xl">{f.emoji}</span>
+                                      <span className="text-[10px] text-gray-500 leading-tight text-center">{f.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowFeelingFor(look.id)}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 transition"
+                              >
+                                <span className="text-base">💭</span> Como me senti
+                              </button>
+                            )
+                          )}
                         </div>
                       </div>
                     </div>

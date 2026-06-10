@@ -22,10 +22,11 @@ model User {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  garments       Garment[]
-  looks          Look[]
-  knowledgeFiles KnowledgeFile[]
-  knowledgeIndex KnowledgeIndex?
+  garments        Garment[]
+  looks           Look[]
+  knowledgeFiles  KnowledgeFile[]
+  knowledgeIndex  KnowledgeIndex?
+  wardrobeStores  WardrobeStore[]
 
   @@map("users")
 }
@@ -51,18 +52,47 @@ model Garment {
 }
 
 model Look {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name         String
   garmentsJson String
   moodTags     String
   explanation  String
   eventContext String
-  saved        Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  saved        Boolean   @default(false)
+  feeling      String?
+  feelingEmoji String?
+  wornAt       DateTime?
+  createdAt    DateTime  @default(now())
 
   @@map("looks")
+}
+
+model WardrobeStore {
+  id                String       @id @default(cuid())
+  userId            String
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  description       String
+  tags              String
+  garmentsSnapshot  String
+  views             Int          @default(0)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  clones            StoreClone[]
+
+  @@map("wardrobe_stores")
+}
+
+model StoreClone {
+  id             String        @id @default(cuid())
+  storeId        String
+  store          WardrobeStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  clonedByUserId String
+  clonedAt       DateTime      @default(now())
+
+  @@map("store_clones")
 }
 
 model KnowledgeFile {
