@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI, { toFile } from "openai";
-import { GarmentItem } from "@/lib/types";
+import { GarmentItem, MannequinConfig, mannequinToPrompt } from "@/lib/types";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -48,9 +48,10 @@ async function describeGarments(garments: GarmentItem[]): Promise<string[]> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { look, userPhotoBase64, modelChoice = "dalle3" }: {
+    const { look, userPhotoBase64, mannequinConfig, modelChoice = "dalle3" }: {
       look: { name: string; garments: GarmentItem[]; moodTags: string[]; eventContext: string };
       userPhotoBase64?: string;
+      mannequinConfig?: MannequinConfig;
       modelChoice?: "dalle3" | "gpt-image-1";
     } = await req.json();
 
@@ -76,9 +77,13 @@ export async function POST(req: NextRequest) {
           .map(g => `${g.color} ${g.type}${g.material ? ` (${g.material})` : ""}`)
           .join(", ");
 
+        const mannequinDesc = mannequinConfig
+          ? mannequinToPrompt(mannequinConfig)
+          : "a neutral fashion figure";
+
         const prompt = userPhotoBase64
           ? `Dress the person from the first reference image wearing EXACTLY the garments shown in the other reference images (${garmentList}). Preserve the precise length, cut, and texture of each clothing piece. Full body shot, ${mood} mood, styled for ${event}. Professional fashion photography, clean studio background.`
-          : `Create a full body fashion editorial image of a neutral mannequin or stylized fashion figure wearing EXACTLY these garments as shown in the reference images (${garmentList}). Faithfully reproduce each item's length, silhouette, color, and texture. ${mood} mood, styled for ${event}. Clean white studio background, professional lighting.`;
+          : `Create a full body fashion editorial image of ${mannequinDesc} wearing EXACTLY these garments as shown in the reference images (${garmentList}). Faithfully reproduce each item's length, silhouette, color, and texture. ${mood} mood, styled for ${event}. Clean white studio background, professional lighting.`;
 
         const imageResponse = await openai.images.edit({
           model: "gpt-image-1",
@@ -106,6 +111,8 @@ export async function POST(req: NextRequest) {
 
     let dallePrompt: string;
 
+    const mannequinDesc = mannequinConfig ? mannequinToPrompt(mannequinConfig) : null;
+
     if (userPhotoBase64) {
       const visionResponse = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -124,7 +131,7 @@ export async function POST(req: NextRequest) {
       const personDescription = visionResponse.choices[0].message.content?.trim() ?? "a person";
       dallePrompt = `Full body fashion editorial photo of ${personDescription}. They are wearing exactly: ${outfitDetail}. The outfit is styled for ${event} with a ${mood} mood. Reproduce each garment faithfully — respect exact hemlines, proportions, cuts, and fabric textures. Clean studio background, soft professional lighting, fashion magazine quality.`;
     } else {
-      dallePrompt = `Full body fashion editorial photograph of a neutral store mannequin wearing exactly: ${outfitDetail}. The look is styled for ${event} with a ${mood} aesthetic. Reproduce each garment faithfully — exact hemlines, proportions, silhouette, and fabric textures. Clean white studio background, soft directional lighting, high detail on each clothing item.`;
+      dallePrompt = `Full body fashion editorial photograph of ${mannequinDesc ?? "a neutral store mannequin"} wearing exactly: ${outfitDetail}. The look is styled for ${event} with a ${mood} aesthetic. Reproduce each garment faithfully — exact hemlines, proportions, silhouette, and fabric textures. Clean white studio background, soft directional lighting, high detail on each clothing item.`;
     }
 
     const imageResponse = await openai.images.generate({

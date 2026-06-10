@@ -18,6 +18,8 @@ model User {
   passwordResetTokenHash String?
   passwordResetExpiresAt DateTime?
   consentAt      DateTime
+  avatarType     String?
+  avatarConfig   String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?

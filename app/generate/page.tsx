@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { GarmentItem, Look, MOODS, EVENT_CHIPS, FEELING_OPTIONS } from "@/lib/types";
+import { GarmentItem, Look, MOODS, EVENT_CHIPS, FEELING_OPTIONS, AvatarConfig, MannequinConfig, mannequinToPrompt } from "@/lib/types";
 import { compressImage } from "@/lib/storage";
 import {
   Wand2, Loader2, Sparkles, Heart, BookmarkCheck, RefreshCw,
@@ -34,6 +34,7 @@ export default function GeneratePage() {
   const [error, setError] = useState<string | null>(null);
   const [garments, setGarments] = useState<GarmentItem[]>([]);
   const [loadingGarments, setLoadingGarments] = useState(true);
+  const [avatar, setAvatar] = useState<AvatarConfig | null>(null);
 
   const [visual, setVisual] = useState<VisualState>({
     look: null, mode: "choose", imageUrl: null, error: null, userPhoto: null, modelChoice: "gpt-image-1",
@@ -45,14 +46,19 @@ export default function GeneratePage() {
     async function loadData() {
       setLoadingGarments(true);
       try {
-        const [gRes, lRes] = await Promise.all([
+        const [gRes, lRes, aRes] = await Promise.all([
           fetch("/api/user/garments"),
           fetch("/api/user/looks"),
+          fetch("/api/user/avatar"),
         ]);
         if (gRes.ok) setGarments(await gRes.json());
         if (lRes.ok) {
           const existingLooks: Look[] = await lRes.json();
           setSaved(new Set(existingLooks.filter((l) => l.saved).map((l) => l.id)));
+        }
+        if (aRes.ok) {
+          const { avatar: a } = await aRes.json();
+          setAvatar(a ?? null);
         }
       } finally {
         setLoadingGarments(false);
@@ -147,13 +153,14 @@ export default function GeneratePage() {
     });
   }
 
-  async function generateVisual(withPhoto: boolean) {
+  async function generateVisual(withPhoto: boolean, overridePhoto?: string) {
     if (!visual.look) return;
     setVisual((v) => ({ ...v, mode: "loading" }));
     try {
       const isPng = visual.modelChoice === "gpt-image-1";
+      const photoSrc = overridePhoto ?? (withPhoto ? visual.userPhoto : null);
 
-      const garments = isPng
+      const lookGarments = isPng
         ? await Promise.all(visual.look.garments.map(async (g) => ({
             ...g,
             imageUrl: await toPngDataUrl(g.imageUrl),
@@ -161,13 +168,20 @@ export default function GeneratePage() {
         : visual.look.garments;
 
       let userPhotoPayload: string | undefined;
-      if (withPhoto && visual.userPhoto) {
+      if (photoSrc) {
         if (isPng) {
-          const pngUrl = await toPngDataUrl(`data:image/jpeg;base64,${visual.userPhoto}`);
+          const src = photoSrc.startsWith("data:") ? photoSrc : `data:image/jpeg;base64,${photoSrc}`;
+          const pngUrl = await toPngDataUrl(src);
           userPhotoPayload = pngUrl;
         } else {
-          userPhotoPayload = visual.userPhoto;
+          userPhotoPayload = photoSrc;
         }
+      }
+
+      // mannequin from saved avatar (only when no photo)
+      let mannequinPayload: MannequinConfig | undefined;
+      if (!userPhotoPayload && avatar?.type === "mannequin") {
+        mannequinPayload = avatar.mannequin;
       }
 
       const res = await fetch("/api/generate-look-image", {
@@ -176,12 +190,13 @@ export default function GeneratePage() {
         body: JSON.stringify({
           look: {
             name: visual.look.name,
-            garments,
+            garments: lookGarments,
             moodTags: visual.look.moodTags,
             eventContext: visual.look.eventContext,
           },
           modelChoice: visual.modelChoice,
           ...(userPhotoPayload ? { userPhotoBase64: userPhotoPayload } : {}),
+          ...(mannequinPayload ? { mannequinConfig: mannequinPayload } : {}),
         }),
       });
       const data = await res.json();
@@ -462,35 +477,93 @@ export default function GeneratePage() {
 
             <div className="p-6">
               {visual.mode === "choose" && (
-                <div className="space-y-4">
-                  <p className="text-gray-600 text-sm text-center mb-2">Como quer ver essa composição ganhar vida?</p>
+                <div className="space-y-3">
+                  <p className="text-gray-600 text-sm text-center mb-1">Como quer ver essa composição ganhar vida?</p>
+
+                  {/* Saved avatar option */}
+                  {avatar && (
+                    <button
+                      onClick={() => {
+                        if (avatar.type === "photo") {
+                          generateVisual(false, avatar.photoBase64);
+                        } else {
+                          generateVisual(false);
+                        }
+                      }}
+                      className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-brand-400 bg-brand-50 hover:bg-brand-100 transition group"
+                    >
+                      {avatar.type === "photo" ? (
+                        <img src={avatar.photoBase64} alt="Seu avatar" className="w-12 h-12 rounded-xl object-cover border-2 border-brand-200 flex-shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl">🪆</div>
+                      )}
+                      <div className="text-left flex-1">
+                        <p className="font-bold text-brand-800 text-sm">
+                          {avatar.type === "photo" ? "Usar minha foto cadastrada" : "Usar meu manequim"}
+                        </p>
+                        <p className="text-xs text-brand-600 mt-0.5 line-clamp-1">
+                          {avatar.type === "mannequin"
+                            ? mannequinToPrompt(avatar.mannequin)
+                            : "Foto salva no seu perfil"}
+                        </p>
+                      </div>
+                      <Sparkles className="w-4 h-4 text-brand-400 flex-shrink-0" />
+                    </button>
+                  )}
+
+                  {/* Upload new photo */}
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-dashed border-brand-300 hover:border-brand-500 hover:bg-brand-50 transition group"
+                    className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed border-brand-200 hover:border-brand-400 hover:bg-brand-50 transition group"
                   >
                     <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center group-hover:bg-brand-200 transition flex-shrink-0">
                       <User className="w-6 h-6 text-brand-700" />
                     </div>
                     <div className="text-left">
-                      <p className="font-bold text-gray-800">Usar minha foto</p>
+                      <p className="font-bold text-gray-800 text-sm">
+                        {avatar?.type === "photo" ? "Enviar outra foto" : "Usar minha foto agora"}
+                      </p>
                       <p className="text-xs text-gray-500 mt-0.5">Veja a expressão no seu próprio corpo</p>
                     </div>
                     <Upload className="w-4 h-4 text-brand-400 ml-auto" />
                   </button>
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                  <button
-                    onClick={() => generateVisual(false)}
-                    className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-dashed border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition group"
-                  >
-                    <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-gray-200 transition flex-shrink-0">
-                      <Box className="w-6 h-6 text-gray-600" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-bold text-gray-800">Gerar com manequim</p>
-                      <p className="text-xs text-gray-500 mt-0.5">A IA cria uma composição visual da expressão</p>
-                    </div>
-                    <Sparkles className="w-4 h-4 text-gray-400 ml-auto" />
-                  </button>
+
+                  {/* Mannequin without config */}
+                  {!avatar && (
+                    <button
+                      onClick={() => generateVisual(false)}
+                      className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition group"
+                    >
+                      <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-gray-200 transition flex-shrink-0">
+                        <Box className="w-6 h-6 text-gray-600" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-gray-800 text-sm">Gerar com manequim genérico</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Ou configure um manequim personalizado no{" "}
+                          <span className="text-brand-600 underline">Perfil</span>
+                        </p>
+                      </div>
+                      <Sparkles className="w-4 h-4 text-gray-400 ml-auto" />
+                    </button>
+                  )}
+
+                  {avatar?.type === "mannequin" && (
+                    <button
+                      onClick={() => generateVisual(false)}
+                      className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition group"
+                    >
+                      <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-gray-200 transition flex-shrink-0">
+                        <Box className="w-6 h-6 text-gray-600" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-gray-800 text-sm">Manequim genérico</p>
+                        <p className="text-xs text-gray-500 mt-0.5">Sem referência de corpo</p>
+                      </div>
+                      <Box className="w-4 h-4 text-gray-400 ml-auto" />
+                    </button>
+                  )}
                 </div>
               )}
 

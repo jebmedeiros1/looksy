@@ -54,6 +54,73 @@ export const FEELING_OPTIONS = [
   { emoji: "⚡", label: "Energizada", value: "energizada" },
 ] as const;
 
+// ── Avatar types ──────────────────────────────────────────────────────────────
+
+export const AVATAR_HEIGHT_OPTIONS = [
+  { id: "petite", label: "Petite", desc: "até 1.60m", prompt: "petite woman, about 1.55m tall" },
+  { id: "media",  label: "Média",  desc: "1.61 – 1.70m", prompt: "woman of average height, about 1.65m tall" },
+  { id: "alta",   label: "Alta",   desc: "acima de 1.70m", prompt: "tall woman, about 1.75m tall" },
+] as const;
+
+export const AVATAR_SKIN_OPTIONS = [
+  { id: "clara",        label: "Clara",        hex: "#F5CBA7", prompt: "fair skin" },
+  { id: "morena-clara", label: "Morena Clara", hex: "#D4956A", prompt: "light tan skin" },
+  { id: "morena",       label: "Morena",       hex: "#A0715A", prompt: "medium brown skin" },
+  { id: "negra",        label: "Negra",        hex: "#5C3317", prompt: "deep brown skin" },
+] as const;
+
+export const AVATAR_BODY_OPTIONS = [
+  { id: "ampulheta",           label: "Ampulheta",          icon: "⧖", desc: "Ombros e quadris proporcionais, cintura definida", prompt: "hourglass figure" },
+  { id: "triangulo",           label: "Triângulo",          icon: "▽", desc: "Quadris mais largos que ombros",                  prompt: "pear-shaped figure" },
+  { id: "triangulo-invertido", label: "Triângulo Invertido", icon: "△", desc: "Ombros mais largos que quadris",                  prompt: "inverted triangle figure" },
+  { id: "retangular",          label: "Retangular",         icon: "▭", desc: "Ombros, cintura e quadris em linha",              prompt: "rectangular figure" },
+  { id: "oval",                label: "Oval",               icon: "⬭", desc: "Torso mais arredondado",                         prompt: "oval apple-shaped figure" },
+] as const;
+
+export const AVATAR_HAIR_COLOR_OPTIONS = [
+  { id: "loiro",    label: "Loiro",    hex: "#F5D76E", prompt: "blonde hair" },
+  { id: "castanho", label: "Castanho", hex: "#7B4F2E", prompt: "brunette hair" },
+  { id: "preto",    label: "Preto",    hex: "#1A1A1A", prompt: "black hair" },
+  { id: "ruivo",    label: "Ruivo",    hex: "#C0392B", prompt: "red hair" },
+  { id: "grisalho", label: "Grisalho", hex: "#BDC3C7", prompt: "silver gray hair" },
+] as const;
+
+export const AVATAR_HAIR_TYPE_OPTIONS = [
+  { id: "liso",     label: "Liso",     prompt: "straight" },
+  { id: "ondulado", label: "Ondulado", prompt: "wavy" },
+  { id: "cacheado", label: "Cacheado", prompt: "curly" },
+  { id: "crespo",   label: "Crespo",   prompt: "coily" },
+] as const;
+
+export type AvatarHeightId   = typeof AVATAR_HEIGHT_OPTIONS[number]["id"];
+export type AvatarSkinId     = typeof AVATAR_SKIN_OPTIONS[number]["id"];
+export type AvatarBodyId     = typeof AVATAR_BODY_OPTIONS[number]["id"];
+export type AvatarHairColor  = typeof AVATAR_HAIR_COLOR_OPTIONS[number]["id"];
+export type AvatarHairType   = typeof AVATAR_HAIR_TYPE_OPTIONS[number]["id"];
+
+export interface MannequinConfig {
+  height:   AvatarHeightId;
+  skin:     AvatarSkinId;
+  body:     AvatarBodyId;
+  hair:     AvatarHairColor;
+  hairType: AvatarHairType;
+}
+
+export type AvatarConfig =
+  | { type: "mannequin"; mannequin: MannequinConfig }
+  | { type: "photo";     photoBase64: string };
+
+export function mannequinToPrompt(m: MannequinConfig): string {
+  const height   = AVATAR_HEIGHT_OPTIONS.find((o) => o.id === m.height)?.prompt ?? "woman";
+  const skin     = AVATAR_SKIN_OPTIONS.find((o) => o.id === m.skin)?.prompt ?? "medium skin";
+  const body     = AVATAR_BODY_OPTIONS.find((o) => o.id === m.body)?.prompt ?? "average figure";
+  const hairCol  = AVATAR_HAIR_COLOR_OPTIONS.find((o) => o.id === m.hair)?.prompt ?? "dark hair";
+  const hairType = AVATAR_HAIR_TYPE_OPTIONS.find((o) => o.id === m.hairType)?.prompt ?? "straight";
+  return `a ${height}, ${skin}, ${body}, with ${hairType} ${hairCol}`;
+}
+
+// ── Motivational messages ─────────────────────────────────────────────────────
+
 export const MOTIVATIONAL_MESSAGES = [
   {
     message: "Vestir-se é um ato de amor próprio. Cada peça que você escolhe é um capítulo da sua história.",
