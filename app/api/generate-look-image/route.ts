@@ -4,14 +4,19 @@ import { GarmentItem } from "@/lib/types";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Strip data URL prefix and return raw base64
 function extractBase64(dataUrlOrBase64: string): string {
   return dataUrlOrBase64.includes(",") ? dataUrlOrBase64.split(",")[1] : dataUrlOrBase64;
 }
 
+function extractMime(dataUrlOrBase64: string): string {
+  const match = dataUrlOrBase64.match(/^data:([^;]+);base64,/);
+  return match ? match[1] : "image/jpeg";
+}
+
 async function base64ToFile(dataUrlOrBase64: string, filename: string) {
   const buffer = Buffer.from(extractBase64(dataUrlOrBase64), "base64");
-  return toFile(buffer, filename, { type: "image/jpeg" });
+  const type = extractMime(dataUrlOrBase64);
+  return toFile(buffer, filename, { type });
 }
 
 // Use GPT-4o-mini Vision to describe each garment in detail (length, cut, fit, pattern)
@@ -58,36 +63,41 @@ export async function POST(req: NextRequest) {
 
     // --- GPT-IMAGE-1 path: pass actual garment images as reference ---
     if (modelChoice === "gpt-image-1") {
-      const garmentFiles = await Promise.all(
-        look.garments.map((g, i) => base64ToFile(g.imageUrl, `garment-${i}.jpg`))
-      );
+      try {
+        const garmentFiles = await Promise.all(
+          look.garments.map((g, i) => base64ToFile(g.imageUrl, `garment-${i}.png`))
+        );
 
-      const images = userPhotoBase64
-        ? [await base64ToFile(userPhotoBase64, "person.jpg"), ...garmentFiles]
-        : garmentFiles;
+        const images = userPhotoBase64
+          ? [await base64ToFile(userPhotoBase64, "person.png"), ...garmentFiles]
+          : garmentFiles;
 
-      const garmentList = look.garments
-        .map(g => `${g.color} ${g.type}${g.material ? ` (${g.material})` : ""}`)
-        .join(", ");
+        const garmentList = look.garments
+          .map(g => `${g.color} ${g.type}${g.material ? ` (${g.material})` : ""}`)
+          .join(", ");
 
-      const prompt = userPhotoBase64
-        ? `Dress the person from the first reference image wearing EXACTLY the garments shown in the other reference images (${garmentList}). Preserve the precise length, cut, and texture of each clothing piece. Full body shot, ${mood} mood, styled for ${event}. Professional fashion photography, clean studio background.`
-        : `Create a full body fashion editorial image of a neutral mannequin or stylized fashion figure wearing EXACTLY these garments as shown in the reference images (${garmentList}). Faithfully reproduce each item's length, silhouette, color, and texture. ${mood} mood, styled for ${event}. Clean white studio background, professional lighting.`;
+        const prompt = userPhotoBase64
+          ? `Dress the person from the first reference image wearing EXACTLY the garments shown in the other reference images (${garmentList}). Preserve the precise length, cut, and texture of each clothing piece. Full body shot, ${mood} mood, styled for ${event}. Professional fashion photography, clean studio background.`
+          : `Create a full body fashion editorial image of a neutral mannequin or stylized fashion figure wearing EXACTLY these garments as shown in the reference images (${garmentList}). Faithfully reproduce each item's length, silhouette, color, and texture. ${mood} mood, styled for ${event}. Clean white studio background, professional lighting.`;
 
-      const imageResponse = await openai.images.edit({
-        model: "gpt-image-1",
-        image: images,
-        prompt,
-        // @ts-expect-error input_fidelity not yet in SDK types
-        input_fidelity: "high",
-        quality: "high",
-        size: "1024x1024",
-        n: 1,
-      });
+        const imageResponse = await openai.images.edit({
+          model: "gpt-image-1",
+          image: images,
+          prompt,
+          // @ts-expect-error input_fidelity not yet in SDK types
+          input_fidelity: "high",
+          quality: "high",
+          size: "1024x1024",
+          n: 1,
+        });
 
-      const b64 = imageResponse.data?.[0]?.b64_json;
-      if (!b64) throw new Error("Imagem não gerada");
-      return NextResponse.json({ imageUrl: `data:image/png;base64,${b64}` });
+        const b64 = imageResponse.data?.[0]?.b64_json;
+        if (!b64) throw new Error("Imagem não gerada");
+        return NextResponse.json({ imageUrl: `data:image/png;base64,${b64}` });
+      } catch (gptErr) {
+        console.warn("gpt-image-1 falhou, usando DALL-E 3:", gptErr instanceof Error ? gptErr.message : gptErr);
+        // fall through to DALL-E 3
+      }
     }
 
     // --- DALL-E 3 path: vision step for detailed garment descriptions ---
@@ -107,7 +117,7 @@ export async function POST(req: NextRequest) {
               type: "text",
               text: "Describe this person's appearance in English for a fashion photo illustration: skin tone, hair color and style, body build. 1-2 sentences only. Do not mention clothing.",
             },
-            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${userPhotoBase64}` } },
+            { type: "image_url", image_url: { url: userPhotoBase64.startsWith("data:") ? userPhotoBase64 : `data:image/jpeg;base64,${userPhotoBase64}` } },
           ],
         }],
       });

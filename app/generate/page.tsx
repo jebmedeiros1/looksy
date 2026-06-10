@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { GarmentItem, Look, MOODS, EVENT_CHIPS } from "@/lib/types";
+import { compressImage } from "@/lib/storage";
 import {
   Wand2, Loader2, Sparkles, Heart, BookmarkCheck, RefreshCw,
   AlertCircle, ArrowRight, Shirt, Image as ImageIcon, Upload,
@@ -112,33 +113,63 @@ export default function GeneratePage() {
     setVisual((v) => ({ look: null, mode: "choose", imageUrl: null, error: null, userPhoto: null, modelChoice: v.modelChoice }));
   }
 
-  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const base64 = (ev.target?.result as string).split(",")[1];
-      setVisual((v) => ({ ...v, userPhoto: base64, mode: "photo" }));
-    };
-    reader.readAsDataURL(file);
+    const dataUrl = await compressImage(file, 1024);
+    const base64 = dataUrl.split(",")[1];
+    setVisual((v) => ({ ...v, userPhoto: base64, mode: "photo" }));
+  }
+
+  function toPngDataUrl(dataUrl: string): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext("2d")!.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.src = dataUrl;
+    });
   }
 
   async function generateVisual(withPhoto: boolean) {
     if (!visual.look) return;
     setVisual((v) => ({ ...v, mode: "loading" }));
     try {
+      const isPng = visual.modelChoice === "gpt-image-1";
+
+      const garments = isPng
+        ? await Promise.all(visual.look.garments.map(async (g) => ({
+            ...g,
+            imageUrl: await toPngDataUrl(g.imageUrl),
+          })))
+        : visual.look.garments;
+
+      let userPhotoPayload: string | undefined;
+      if (withPhoto && visual.userPhoto) {
+        if (isPng) {
+          const pngUrl = await toPngDataUrl(`data:image/jpeg;base64,${visual.userPhoto}`);
+          userPhotoPayload = pngUrl;
+        } else {
+          userPhotoPayload = visual.userPhoto;
+        }
+      }
+
       const res = await fetch("/api/generate-look-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           look: {
             name: visual.look.name,
-            garments: visual.look.garments,
+            garments,
             moodTags: visual.look.moodTags,
             eventContext: visual.look.eventContext,
           },
           modelChoice: visual.modelChoice,
-          ...(withPhoto && visual.userPhoto ? { userPhotoBase64: visual.userPhoto } : {}),
+          ...(userPhotoPayload ? { userPhotoBase64: userPhotoPayload } : {}),
         }),
       });
       const data = await res.json();

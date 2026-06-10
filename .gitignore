@@ -7,3 +7,5 @@ knowledge/index.json
 tsconfig.tsbuildinfo
 *.db
 *.db-journal
+
+.vercel
