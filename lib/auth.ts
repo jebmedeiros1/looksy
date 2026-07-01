@@ -5,6 +5,7 @@ import { prisma } from "./db";
 import { hashEmail, decryptField } from "./crypto";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {
