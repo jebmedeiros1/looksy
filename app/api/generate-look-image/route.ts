@@ -3,7 +3,11 @@ import OpenAI, { toFile } from "openai";
 import { GarmentItem, MannequinConfig, mannequinToPrompt } from "@/lib/types";
 import { auth } from "@/lib/auth";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai: OpenAI;
+function getOpenAI(): OpenAI {
+  if (!openai) openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openai;
+}
 
 function extractBase64(dataUrlOrBase64: string): string {
   return dataUrlOrBase64.includes(",") ? dataUrlOrBase64.split(",")[1] : dataUrlOrBase64;
@@ -25,7 +29,7 @@ async function describeGarments(garments: GarmentItem[]): Promise<string[]> {
   return Promise.all(
     garments.map(async (g) => {
       try {
-        const res = await openai.chat.completions.create({
+        const res = await getOpenAI().chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 80,
           messages: [{
@@ -94,7 +98,7 @@ export async function POST(req: NextRequest) {
           ? `Dress the person from the first reference image wearing EXACTLY the garments shown in the other reference images (${garmentList}). Preserve the precise length, cut, and texture of each clothing piece. Full body shot, ${mood} mood, styled for ${event}. Professional fashion photography, clean studio background.`
           : `Create a full body fashion editorial image of ${mannequinDesc} wearing EXACTLY these garments as shown in the reference images (${garmentList}). Faithfully reproduce each item's length, silhouette, color, and texture. ${mood} mood, styled for ${event}. Clean white studio background, professional lighting.`;
 
-        const imageResponse = await openai.images.edit({
+        const imageResponse = await getOpenAI().images.edit({
           model: "gpt-image-1",
           image: images,
           prompt,
@@ -123,7 +127,7 @@ export async function POST(req: NextRequest) {
     const mannequinDesc = mannequinConfig ? mannequinToPrompt(mannequinConfig) : null;
 
     if (userPhotoBase64) {
-      const visionResponse = await openai.chat.completions.create({
+      const visionResponse = await getOpenAI().chat.completions.create({
         model: "gpt-4o",
         max_tokens: 150,
         messages: [{
@@ -143,7 +147,7 @@ export async function POST(req: NextRequest) {
       dallePrompt = `Full body fashion editorial photograph of ${mannequinDesc ?? "a neutral store mannequin"} wearing exactly: ${outfitDetail}. The look is styled for ${event} with a ${mood} aesthetic. Reproduce each garment faithfully — exact hemlines, proportions, silhouette, and fabric textures. Clean white studio background, soft directional lighting, high detail on each clothing item.`;
     }
 
-    const imageResponse = await openai.images.generate({
+    const imageResponse = await getOpenAI().images.generate({
       model: "dall-e-3",
       prompt: dallePrompt,
       n: 1,

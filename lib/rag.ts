@@ -1,7 +1,11 @@
 import OpenAI from "openai";
 import { prisma } from "./db";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai: OpenAI;
+function getOpenAI(): OpenAI {
+  if (!openai) openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openai;
+}
 
 interface Chunk {
   file: string;
@@ -44,7 +48,7 @@ export async function buildIndex(userId: string): Promise<{ files: number; chunk
   }
 
   const texts = rawChunks.map((c) => c.content.slice(0, 8000));
-  const embRes = await openai.embeddings.create({
+  const embRes = await getOpenAI().embeddings.create({
     model: "text-embedding-3-small",
     input: texts,
   });
@@ -74,7 +78,7 @@ export async function searchKnowledge(
   const index: Chunk[] = JSON.parse(record.indexJson);
   if (!index.length) return [];
 
-  const embRes = await openai.embeddings.create({
+  const embRes = await getOpenAI().embeddings.create({
     model: "text-embedding-3-small",
     input: [query],
   });
