@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI, { toFile } from "openai";
 import { GarmentItem, MannequinConfig, mannequinToPrompt } from "@/lib/types";
+import { auth } from "@/lib/auth";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -47,6 +48,9 @@ async function describeGarments(garments: GarmentItem[]): Promise<string[]> {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
   try {
     const { look, userPhotoBase64, mannequinConfig, modelChoice = "dalle3" }: {
       look: { name: string; garments: GarmentItem[]; moodTags: string[]; eventContext: string };
@@ -57,6 +61,11 @@ export async function POST(req: NextRequest) {
 
     if (!look?.garments?.length) {
       return NextResponse.json({ error: "Dados do look inválidos" }, { status: 400 });
+    }
+
+    const MAX_BASE64_CHARS = 11 * 1024 * 1024;
+    if (userPhotoBase64 && userPhotoBase64.length > MAX_BASE64_CHARS) {
+      return NextResponse.json({ error: "Foto muito grande (máximo 8 MB)" }, { status: 413 });
     }
 
     const mood = look.moodTags.join(", ") || "elegant";
@@ -148,7 +157,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ imageUrl });
   } catch (err: unknown) {
     console.error("generate-look-image error", err);
-    const msg = err instanceof Error ? err.message : "Erro ao gerar imagem";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "Erro ao gerar imagem" }, { status: 500 });
   }
 }

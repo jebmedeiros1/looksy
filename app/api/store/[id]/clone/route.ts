@@ -19,6 +19,13 @@ export async function POST(
     return NextResponse.json({ error: "Você não pode clonar seu próprio guarda-roupa" }, { status: 400 });
   }
 
+  const alreadyCloned = await prisma.storeClone.findUnique({
+    where: { storeId_clonedByUserId: { storeId: id, clonedByUserId: session.user.id } },
+  });
+  if (alreadyCloned) {
+    return NextResponse.json({ error: "Você já clonou este guarda-roupa" }, { status: 409 });
+  }
+
   const garments: GarmentItem[] = JSON.parse(store.garmentsSnapshot);
 
   // Create new garments for the cloning user with new IDs

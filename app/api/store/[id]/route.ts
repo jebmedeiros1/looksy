@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { decryptField } from "@/lib/crypto";
 import { WardrobeStore } from "@/lib/types";
+
+function safeJsonParse<T>(str: string, fallback: T): T {
+  try { return JSON.parse(str); } catch { return fallback; }
+}
 
 export async function GET(
   _req: NextRequest,
@@ -28,11 +33,11 @@ export async function GET(
   const result: WardrobeStore = {
     id: store.id,
     userId: store.userId,
-    ownerName: "Usuária Looksy",
+    ownerName: store.user.nameEncrypted ? decryptField(store.user.nameEncrypted) : "Usuária Looksy",
     name: store.name,
     description: store.description,
-    tags: JSON.parse(store.tags),
-    garments: JSON.parse(store.garmentsSnapshot),
+    tags: safeJsonParse<string[]>(store.tags, []),
+    garments: safeJsonParse(store.garmentsSnapshot, []),
     views: store.views,
     clones: store.clones.length,
     createdAt: store.createdAt.toISOString(),

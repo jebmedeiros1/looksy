@@ -94,6 +94,7 @@ model StoreClone {
   clonedByUserId String
   clonedAt       DateTime      @default(now())
 
+  @@unique([storeId, clonedByUserId])
   @@map("store_clones")
 }
 

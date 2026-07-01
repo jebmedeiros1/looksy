@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
 
       const resetUrl = `/auth/reset-password?token=${encodeURIComponent(token)}`;
 
-      if (process.env.NODE_ENV !== "production") {
+      // Only expose the URL in local development — never on deployed envs (including preview).
+      const isLocalDev =
+        process.env.NODE_ENV === "development" &&
+        (process.env.NEXTAUTH_URL ?? "").includes("localhost");
+      if (isLocalDev) {
         return NextResponse.json({ ok: true, resetUrl });
       }
 

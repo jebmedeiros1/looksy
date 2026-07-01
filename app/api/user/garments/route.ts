@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
       confidence: item.confidence,
       length: item.length,
       fit: item.fit,
-      createdAt: new Date(item.createdAt),
     },
   });
 

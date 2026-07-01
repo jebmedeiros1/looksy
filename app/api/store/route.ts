@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { decryptField } from "@/lib/crypto";
 import { WardrobeStore } from "@/lib/types";
 
-function decryptName(user: { nameEncrypted: string | null }): string {
-  // Return a display-safe name (decryption would require the crypto key; use placeholder here)
-  return user.nameEncrypted ? "Usuária Looksy" : "Usuária Looksy";
+function safeJsonParse<T>(str: string, fallback: T): T {
+  try { return JSON.parse(str); } catch { return fallback; }
 }
 
 export async function GET(req: NextRequest) {
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   const result: WardrobeStore[] = stores
     .filter((s) => {
       if (!query) return true;
-      const tags: string[] = JSON.parse(s.tags);
+      const tags: string[] = safeJsonParse<string[]>(s.tags, []);
       return (
         s.name.toLowerCase().includes(query) ||
         s.description.toLowerCase().includes(query) ||
@@ -37,11 +37,11 @@ export async function GET(req: NextRequest) {
     .map((s) => ({
       id: s.id,
       userId: s.userId,
-      ownerName: decryptName(s.user),
+      ownerName: s.user.nameEncrypted ? decryptField(s.user.nameEncrypted) : "Usuária Looksy",
       name: s.name,
       description: s.description,
-      tags: JSON.parse(s.tags),
-      garments: JSON.parse(s.garmentsSnapshot),
+      tags: safeJsonParse<string[]>(s.tags, []),
+      garments: safeJsonParse(s.garmentsSnapshot, []),
       views: s.views,
       clones: s.clones.length,
       createdAt: s.createdAt.toISOString(),
@@ -74,8 +74,8 @@ export async function POST(req: NextRequest) {
     type: g.type,
     color: g.color,
     colorHex: g.colorHex,
-    style: JSON.parse(g.style),
-    occasions: JSON.parse(g.occasions),
+    style: safeJsonParse<string[]>(g.style, []),
+    occasions: safeJsonParse<string[]>(g.occasions, []),
     season: g.season,
     material: g.material ?? undefined,
     confidence: g.confidence ?? undefined,

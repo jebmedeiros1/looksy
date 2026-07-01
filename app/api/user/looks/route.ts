@@ -35,21 +35,29 @@ export async function POST(req: NextRequest) {
 
   const look: Look = await req.json();
 
-  await prisma.look.upsert({
-    where: { id: look.id },
-    create: {
-      id: look.id,
-      userId: session.user.id,
-      name: look.name,
-      garmentsJson: JSON.stringify(look.garments),
-      moodTags: JSON.stringify(look.moodTags),
-      explanation: look.explanation,
-      eventContext: look.eventContext,
-      saved: look.saved,
-      createdAt: new Date(look.createdAt),
-    },
-    update: { saved: look.saved },
+  const existing = await prisma.look.findFirst({
+    where: { id: look.id, userId: session.user.id },
   });
+
+  if (existing) {
+    await prisma.look.update({
+      where: { id: look.id },
+      data: { saved: look.saved },
+    });
+  } else {
+    await prisma.look.create({
+      data: {
+        id: look.id,
+        userId: session.user.id,
+        name: look.name ?? "",
+        garmentsJson: JSON.stringify(look.garments ?? []),
+        moodTags: JSON.stringify(look.moodTags ?? []),
+        explanation: look.explanation ?? "",
+        eventContext: look.eventContext ?? "",
+        saved: look.saved ?? false,
+      },
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -12,6 +12,12 @@ export async function POST(req: NextRequest) {
     const { imageBase64 } = await req.json();
     if (!imageBase64) return NextResponse.json({ error: "Imagem obrigatória" }, { status: 400 });
 
+    // ~8 MB limit: base64 overhead is ~4/3, so 8 MB binary ≈ 10.9 MB base64 chars
+    const MAX_BASE64_CHARS = 11 * 1024 * 1024;
+    if (typeof imageBase64 !== "string" || imageBase64.length > MAX_BASE64_CHARS) {
+      return NextResponse.json({ error: "Imagem muito grande (máximo 8 MB)" }, { status: 413 });
+    }
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       max_tokens: 1500,
@@ -88,7 +94,6 @@ Modelagem (fit) por tipo:
     return NextResponse.json(data);
   } catch (err: unknown) {
     console.error("classify error", err);
-    const msg = err instanceof Error ? err.message : "Erro ao classificar";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "Erro ao classificar imagem" }, { status: 500 });
   }
 }

@@ -95,7 +95,6 @@ Retorne SOMENTE um JSON válido (sem markdown) com esta estrutura:
     return NextResponse.json({ looks });
   } catch (err: unknown) {
     console.error("generate-look error", err);
-    const msg = err instanceof Error ? err.message : "Erro ao gerar looks";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "Erro ao gerar looks" }, { status: 500 });
   }
 }
