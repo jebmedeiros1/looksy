@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.vscode
+*.db
+*.db-journal
+.env
+.env.local
+scripts
